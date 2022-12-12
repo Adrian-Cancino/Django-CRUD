@@ -1,12 +1,16 @@
-from django.shortcuts import render
-from django.contrib.auth.forms import UserCreationForm
+from django.shortcuts import render, redirect
+from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth.models import User
+from django.contrib.auth import login, logout, authenticate
 from django.http import HttpResponse
+from django.db import IntegrityError
 
 # Create your views here.
 
+
 def home(request):
     return render(request, 'home.html')
+
 
 def signup(request):
 
@@ -19,14 +23,47 @@ def signup(request):
             # register user
             try:
                 user = User.objects.create_user(
-                    username=request.POST['username'], 
+                    username=request.POST['username'],
                     password=request.POST['password1']
                 )
                 user.save()
-                return HttpResponse('User created succesfully')
-            except:
-                return HttpResponse('User already exists')
+                login(request, user)  # Store session cookie
+                return redirect('task')
+            except IntegrityError:
+                return render(request, 'signup.html', {
+                    'form': UserCreationForm,
+                    "error": 'Username already exist'
+                })
 
-        return HttpResponse('Password do not match')
+        return render(request, 'signup.html', {
+            'form': UserCreationForm,
+            "error": 'Password do not match'
+        })
 
-    
+
+def task(request):
+    return render(request, 'task.html')
+
+
+def signout(request):
+    logout(request)
+    return redirect('home')
+
+
+def signin(request):
+    if request.method == 'GET':
+        return render(request, 'signin.html', {
+            'form': AuthenticationForm
+        })
+    else:
+        user = authenticate(
+            request, username=request.POST['username'], password=request.POST['password'])
+
+        if user is None:
+            return render(request, 'signin.html', {
+            'form': AuthenticationForm,
+            'error': 'Username or password is incorrect'
+        })
+        else:
+            login(request, user)
+            return redirect('task')
